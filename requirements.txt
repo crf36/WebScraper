@@ -1,0 +1,13 @@
+requests
+beautifulsoup4
+selenium
+boto3
+supabase
+openai
+pydantic
+geopy
+python-dotenv
+langchain-openai
+langchain-core
+langgraph
+webdriver-manager
