@@ -35,7 +35,7 @@ S3_IMG_BUCKET = os.getenv("S3_IMG_BUCKET_NAME")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-AWS_REGION = os.getenv("AWS_DEFAULT_REGION") or os.getenv("AWS_REGION") or "us-east-1"
+AWS_REGION = os.getenv("SCRAPER_AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or "us-east-1"
 IMAGE_MAX_PER_ATTRACTION = int(os.getenv("IMAGE_MAX_PER_ATTRACTION", "1"))
 IMAGE_ALLOW_FALLBACK = os.getenv("IMAGE_ALLOW_FALLBACK", "1").lower() in ("1", "true", "yes")
 
@@ -52,8 +52,8 @@ CACHE_FILE = "/tmp/geo_cache.json"
 s3 = boto3.client(
     "s3",
     region_name=AWS_REGION,
-    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")
+    aws_access_key_id=os.getenv("SCRAPER_AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("SCRAPER_AWS_SECRET_ACCESS_KEY")
 )
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None

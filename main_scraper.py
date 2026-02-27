@@ -140,12 +140,16 @@ def should_refresh_destination(destination):
 
 def get_s3_client():
     try:
+        key = os.getenv('SCRAPER_AWS_ACCESS_KEY_ID')
+        secret = os.getenv('SCRAPER_AWS_SECRET_ACCESS_KEY')
+        print(f"[s3] key_prefix={key[:8] if key else 'MISSING'} | secret_present={secret is not None}")
         return boto3.client(
             's3',
-            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+            aws_access_key_id=key,
+            aws_secret_access_key=secret
         )
     except Exception as e:
+        print(f"[s3] client creation failed | error={e}")
         return None
 
 def upload_to_s3(local_filepath, destination_name):
