@@ -57,6 +57,9 @@ def find_existing_place(destination):
     except Exception as e:
         return None
 
+    direction_tokens = {"north", "south", "east", "west", "n", "s", "e", "w"}
+    dest_tokens = set(dest_clean.split())
+
     best = None
     best_score = 0.0
     for row in res.data or []:
@@ -64,9 +67,19 @@ def find_existing_place(destination):
         row_norm = normalize_place_name(row_city)
         if not row_norm:
             continue
+
+        row_tokens = set(row_norm.split())
+        dest_dirs = dest_tokens.intersection(direction_tokens)
+        row_dirs = row_tokens.intersection(direction_tokens)
+
+        if dest_dirs != row_dirs:
+            continue
+
         score = SequenceMatcher(None, dest_clean, row_norm).ratio()
-        if row_norm in dest_clean or dest_clean in row_norm:
-            score = max(score, 0.95)
+
+        if dest_clean == row_norm:
+            score = 1.0
+
         if score > best_score:
             best = row
             best_score = score
@@ -285,6 +298,7 @@ def extract_image_candidates(raw_html, base_url, max_images=8):
     return candidates
 
 def scrape_and_crawl(destination):
+    print(f"[main] scrape_and_crawl start | destination={destination}")
     search_term = quote_plus(destination)
 
     sites = {
@@ -323,20 +337,28 @@ def scrape_and_crawl(destination):
         except: pass
         
         if not site_data:
+            print(f"[main] selenium fallback | site={site_name} | destination={destination}")
             site_data = selenium_scraper.scrape_links_selenium(site_name, destination)
+        print(f"[main] site results | site={site_name} | count={len(site_data)}")
         
         all_results.extend(site_data)
     
+    print(f"[main] selenium reddit start | destination={destination}")
     reddit_data = selenium_scraper.scrape_links_selenium("Reddit", destination)
+    print(f"[main] selenium reddit done | destination={destination} | count={len(reddit_data)}")
     if reddit_data:
         for item in reddit_data:
             pass
     all_results.extend(reddit_data)
 
-    if not all_results: return
+    print(f"[main] aggregated links | destination={destination} | total_links={len(all_results)}")
+    if not all_results:
+        print(f"[main] no links found | destination={destination}")
+        return
 
     driver = selenium_scraper.get_driver()
     if not driver:
+        print(f"[main] article crawl skipped (no selenium driver) | destination={destination}")
         return
 
     entries = []
@@ -371,6 +393,7 @@ def scrape_and_crawl(destination):
             pass
 
     driver.quit()
+    print(f"[main] article crawl done | destination={destination} | entries={len(entries)}")
     
     if entries:
         s3 = get_s3_client()
@@ -382,8 +405,9 @@ def scrape_and_crawl(destination):
             payload = "\n".join(json.dumps(entry, ensure_ascii=False) for entry in entries) + "\n"
             try:
                 s3.put_object(Bucket=bucket_name, Key=s3_key, Body=payload.encode("utf-8"))
+                print(f"[main] s3 write success | key={s3_key} | entries={len(entries)}")
             except Exception as e:
-                pass
+                print(f"[main] s3 write failed | key={s3_key} | error={e}")
 
 def run_tripadvisor_scraper(destination):
     run_ta_scraper(destination)
@@ -418,11 +442,21 @@ def run_post_tripadvisor_processors():
         proc.wait()
 
 def run_main_scraper(dest):
-    if not should_refresh_destination(dest):
-        return
-    scrape_and_crawl(dest)
-    run_tripadvisor_scraper(dest)
-    run_post_tripadvisor_processors()
+    refresh_needed = should_refresh_destination(dest)
+    force_blog_scrape = os.getenv("FORCE_BLOG_SCRAPE", "1").lower() in ("1", "true", "yes")
+    print(f"[main] refresh decision | destination={dest} | should_refresh={refresh_needed}")
+
+    if refresh_needed or force_blog_scrape:
+        print(f"[main] blog scrape enabled | destination={dest} | force_blog_scrape={force_blog_scrape}")
+        scrape_and_crawl(dest)
+    else:
+        print(f"[main] skipped blog scrape due to freshness window | destination={dest}")
+
+    if refresh_needed:
+        run_tripadvisor_scraper(dest)
+        run_post_tripadvisor_processors()
+    else:
+        print(f"[main] skipped tripadvisor/ai/google due to freshness window | destination={dest}")
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:

@@ -1,5 +1,6 @@
 import time
 import re
+import shutil
 from urllib.parse import quote_plus
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
@@ -7,8 +8,6 @@ from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.service import Service as ChromeService
-from webdriver_manager.chrome import ChromeDriverManager
 
 
 def get_driver():
@@ -18,18 +17,34 @@ def get_driver():
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-gpu")
-        options.add_argument("--single-process")
+        options.add_argument("--no-zygote")
+        options.add_argument("--disable-software-rasterizer")
+        options.add_argument("--window-size=1920,1080")
+        options.add_argument("--remote-debugging-port=9222")
         options.add_argument("--disable-blink-features=AutomationControlled")
         options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        options.binary_location = "/usr/bin/chromium"
-        return webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+
+        chrome_binary = (
+            shutil.which("google-chrome")
+            or shutil.which("chromium")
+            or shutil.which("chromium-browser")
+            or "/usr/bin/google-chrome"
+        )
+        if chrome_binary:
+            options.binary_location = chrome_binary
+
+        chromedriver_binary = shutil.which("chromedriver") or "/usr/bin/chromedriver"
+        print(f"[selenium] launching driver | chrome_binary={chrome_binary} | chromedriver_binary={chromedriver_binary}")
+        return webdriver.Chrome(service=ChromeService(chromedriver_binary), options=options)
     except Exception as e:
         print(f"Chrome driver failed: {e}")
         return None
 
 def scrape_links_selenium(site_name, destination):
+    print(f"[selenium] scrape start | site={site_name} | destination={destination}")
     driver = get_driver()
     if not driver:
+        print(f"[selenium] scrape skipped (no driver) | site={site_name} | destination={destination}")
         return []
 
     results = []
@@ -46,10 +61,11 @@ def scrape_links_selenium(site_name, destination):
         elif site_name == "Reddit":
             results = _scrape_reddit(driver, destination)
     except Exception as e:
-        pass
+        print(f"[selenium] scrape error | site={site_name} | destination={destination} | error={e}")
     finally:
         driver.quit()
 
+    print(f"[selenium] scrape done | site={site_name} | destination={destination} | results={len(results)}")
     return results
 
 def _scrape_travellerspoint(driver, destination):

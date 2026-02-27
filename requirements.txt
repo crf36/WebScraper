@@ -10,4 +10,3 @@ python-dotenv
 langchain-openai
 langchain-core
 langgraph
-webdriver-manager
