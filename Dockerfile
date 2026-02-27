@@ -34,3 +34,13 @@ COPY google_reviews_api.py .
 COPY lambda_handler.py .
 
 CMD ["lambda_handler.handler"]
+
+
+# COMMAND TO BUILD DOCKER CONTAINER
+# docker build -t scraper-lambda .
+
+# COMMAND TO RUN CONTAINER
+# docker run --rm --env-file .env -p 9000:8080 scraper-lambda
+
+# COMMAND TO HIT CONTAINER (DO THIS FROM A DIFFERENT TERMINAL WHILE THE CONTAINER IS RUNNING)
+# curl -X POST "http://localhost:9000/2015-03-31/functions/function/invocations" -H "Content-Type: application/json" -d "{\"city\": \"Austin\"}"
