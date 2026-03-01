@@ -50,9 +50,12 @@ HEADERS = {"accept": "application/json"}
 #############################################################################
 
 def get_s3_client():
-    if not S3_BUCKET:
-        return None
-    return boto3.client("s3")
+    return boto3.client(
+        "s3",
+        region_name=os.getenv("SCRAPER_AWS_REGION") or "us-east-1",
+        aws_access_key_id=os.getenv("SCRAPER_AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("SCRAPER_AWS_SECRET_ACCESS_KEY")
+    )
 
 def s3_download_if_exists(s3, bucket, key, dest_path):
     try:
@@ -62,6 +65,7 @@ def s3_download_if_exists(s3, bucket, key, dest_path):
         code = exc.response.get("Error", {}).get("Code")
         if code in ("404", "NoSuchKey"):
             return False
+        print(f"[ta] s3 download error | key={key} | code={code} | error={exc}")
         raise
 
 def s3_upload_file(s3, bucket, key, source_path):
